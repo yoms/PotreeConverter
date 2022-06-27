@@ -172,5 +172,6 @@ struct Options {
 	bool keepChunks = false;
 	bool noChunking = false;
 	bool noIndexing = false;
+	int threadNumber = -1;
 
 };

@@ -41,12 +41,6 @@ namespace fs = std::filesystem;
 
 namespace chunker_countsort_laszip {
 
-	auto numChunkerThreads = getCpuData().numProcessors;
-	auto numFlushThreads = getCpuData().numProcessors;
-
-	// auto numChunkerThreads = 1;
-	// auto numFlushThreads = 1;
-
 	int maxPointsPerChunk = 5'000'000;
 	int gridSize = 128;
 	mutex mtx_attributes;
@@ -128,7 +122,7 @@ namespace chunker_countsort_laszip {
 		vector<int> grid;
 	};
 
-	vector<std::atomic_int32_t> countPointsInCells(vector<Source> sources, Vector3 min, Vector3 max, int64_t gridSize, State& state, Attributes& outputAttributes) {
+	vector<std::atomic_int32_t> countPointsInCells(vector<Source> sources, Vector3 min, Vector3 max, int64_t gridSize, State& state, Attributes& outputAttributes, int threadNumber) {
 
 		cout << endl;
 		cout << "=======================================" << endl;
@@ -263,7 +257,7 @@ namespace chunker_countsort_laszip {
 			//cout << ("end: " + formatNumber(dbgCurr)) << endl;
 		};
 
-		TaskPool<Task> pool(numChunkerThreads, processor);
+		TaskPool<Task> pool(threadNumber, processor);
 
 		auto tStartTaskAssembly = now();
 
@@ -637,7 +631,7 @@ namespace chunker_countsort_laszip {
 
 	}
 
-	void distributePoints(vector<Source> sources, Vector3 min, Vector3 max, string targetDir, NodeLUT& lut, State& state, Attributes& outputAttributes) {
+	void distributePoints(vector<Source> sources, Vector3 min, Vector3 max, string targetDir, NodeLUT& lut, State& state, Attributes& outputAttributes, int threadNumber) {
 
 		cout << endl;
 		cout << "=======================================" << endl;
@@ -650,7 +644,7 @@ namespace chunker_countsort_laszip {
 		state.bytesProcessed = 0;
 		state.duration = 0;
 
-		writer = new ConcurrentWriter(numFlushThreads, state);
+		writer = new ConcurrentWriter(threadNumber, state);
 
 		printElapsedTime("distributePoints0", tStart);
 
@@ -899,7 +893,7 @@ namespace chunker_countsort_laszip {
 
 		};
 
-		TaskPool<Task> pool(numChunkerThreads, processor);
+		TaskPool<Task> pool(threadNumber, processor);
 
 		for (auto source: sources) {
 
@@ -1151,7 +1145,7 @@ namespace chunker_countsort_laszip {
 		return {gridSize, lut};
 	}
 
-	void doChunking(vector<Source> sources, string targetDir, Vector3 min, Vector3 max, State& state, Attributes outputAttributes) {
+	void doChunking(vector<Source> sources, string targetDir, Vector3 min, Vector3 max, State& state, Attributes outputAttributes, int threadNumber) {
 
 		auto tStart = now();
 
@@ -1179,7 +1173,7 @@ namespace chunker_countsort_laszip {
 		}
 
 		// COUNT
-		auto grid = countPointsInCells(sources, min, max, gridSize, state, outputAttributes);
+		auto grid = countPointsInCells(sources, min, max, gridSize, state, outputAttributes, threadNumber);
 
 		{ // DISTIRBUTE
 			auto tStartDistribute = now();
@@ -1187,7 +1181,7 @@ namespace chunker_countsort_laszip {
 			auto lut = createLUT(grid, gridSize);
 
 			state.currentPass = 2;
-			distributePoints(sources, min, max, targetDir, lut, state, outputAttributes);
+			distributePoints(sources, min, max, targetDir, lut, state, outputAttributes, threadNumber);
 
 			{
 				double duration = now() - tStartDistribute;

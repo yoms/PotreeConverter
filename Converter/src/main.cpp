@@ -28,6 +28,7 @@ Options parseArguments(int argc, char** argv) {
 	args.addArgument("keep-chunks", "");
 	args.addArgument("no-chunking", "");
 	args.addArgument("no-indexing", "");
+	args.addArgument("thread-number,t", "Overwrite thread number used during the process, use system number of core as default value");
 	args.addArgument("attributes", "attributes in output file");
 	args.addArgument("generate-page,p", "Generates a ready to use web page with the given name.");
 	args.addArgument("title", "Page title");
@@ -106,6 +107,21 @@ Options parseArguments(int argc, char** argv) {
 	bool keepChunks = args.has("keep-chunks");
 	bool noChunking = args.has("no-chunking");
 	bool noIndexing = args.has("no-indexing");
+	
+	int threadNumber = -1;
+	
+	if(args.has("thread-number")) {
+		threadNumber = args.get("thread-number").as<int>();
+		if (threadNumber > 0) {
+			cout << "Overriding #threads default to: " << threadNumber << endl;
+		} else {
+			cout << "Invalid number of threads specified: " << threadNumber << endl;
+			exit(123);
+		}
+	} else {
+		auto cpuData = getCpuData();
+		threadNumber = cpuData.numProcessors;
+	}
 
 	Options options;
 	options.source = source;
@@ -113,6 +129,7 @@ Options parseArguments(int argc, char** argv) {
 	options.method = method;
 	options.encoding = encoding;
 	options.chunkMethod = chunkMethod;
+	options.threadNumber = threadNumber;
 	//options.flags = flags;
 	options.attributes = attributes;
 	options.generatePage = generatePage;
@@ -332,13 +349,13 @@ shared_ptr<Monitor> startMonitoring(State& state) {
 
 void chunking(Options& options, vector<Source>& sources, string targetDir, Stats& stats, State& state, Attributes outputAttributes) {
 
+
 	if (options.noChunking) {
 		return;
 	}
 
 	if (options.chunkMethod == "LASZIP") {
-
-		chunker_countsort_laszip::doChunking(sources, targetDir, stats.min, stats.max, state, outputAttributes);
+		chunker_countsort_laszip::doChunking(sources, targetDir, stats.min, stats.max, state, outputAttributes, options.threadNumber);
 
 	} else if (options.chunkMethod == "LAS_CUSTOM") {
 

@@ -15,6 +15,6 @@ class State;
 
 namespace chunker_countsort_laszip {
 
-	void doChunking(vector<Source> sources, string targetDir, Vector3 min, Vector3 max, State& state, Attributes outputAttributes);
+	void doChunking(vector<Source> sources, string targetDir, Vector3 min, Vector3 max, State& state, Attributes outputAttributes, int threadNumber);
 
 }
